@@ -7,25 +7,8 @@ import (
 	"github.com/google/gopacket/layers"
 )
 
-func BuildSYNPacket(srcIP, destIP net.IP, srcPort, destPort uint16) ([]byte, error) {
-	ipLayer := layers.IPv4{
-		SrcIP:    srcIP,
-		DstIP:    destIP,
-		Version:  4,
-		Protocol: layers.IPProtocolTCP,
-	}
-
-	tcpLayer := layers.TCP{
-		SrcPort: layers.TCPPort(srcPort),
-		DstPort: layers.TCPPort(destPort),
-		SYN:     true,
-		Window:  14600,
-	}
-
-	ethLayer := layers.Ethernet{
-		EthernetType: layers.EthernetTypeIPv4,
-		// Get and add the source and destination mac addr
-	}
+func (s *SynScanner) BuildSYNPacket(srcPort uint16, ifi *net.Interface, destMac net.HardwareAddr) ([]byte, error) {
+	ipLayer, tcpLayer, ethLayer := s.BuildLayers(srcPort, ifi, destMac)
 
 	tcpLayer.SetNetworkLayerForChecksum(&ipLayer)
 
@@ -35,9 +18,36 @@ func BuildSYNPacket(srcIP, destIP net.IP, srcPort, destPort uint16) ([]byte, err
 		ComputeChecksums: true,
 	}
 
-	if err := gopacket.SerializeLayers(buf, opts, &ipLayer, &tcpLayer); err != nil {
+	if err := gopacket.SerializeLayers(buf, opts, &ipLayer, &tcpLayer, &ethLayer); err != nil {
 		return nil, err
 	}
 
 	return buf.Bytes(), nil
+}
+
+func (s *SynScanner) BuildLayers(srcPort uint16, ifi *net.Interface, destMac net.HardwareAddr) (layers.IPv4, layers.TCP, layers.Ethernet) {
+	ipLayer := layers.IPv4{
+		SrcIP:    s.sourceIP,
+		DstIP:    s.targetIP,
+		Version:  4,
+		TTL:      255, // optional I guess
+		Protocol: layers.IPProtocolTCP,
+	}
+
+	tcpLayer := layers.TCP{
+		SrcPort: layers.TCPPort(srcPort),
+		DstPort: layers.TCPPort(s.port),
+		SYN:     true,
+		// Window:  14600,
+	}
+
+	ethLayer := layers.Ethernet{
+		EthernetType: layers.EthernetTypeIPv4,
+		DstMAC:       destMac,
+		SrcMAC:       ifi.HardwareAddr,
+	}
+
+	tcpLayer.SetNetworkLayerForChecksum(&ipLayer)
+
+	return ipLayer, tcpLayer, ethLayer
 }
