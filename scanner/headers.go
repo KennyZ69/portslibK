@@ -22,6 +22,11 @@ func BuildSYNPacket(srcIP, destIP net.IP, srcPort, destPort uint16) ([]byte, err
 		Window:  14600,
 	}
 
+	ethLayer := layers.Ethernet{
+		EthernetType: layers.EthernetTypeIPv4,
+		// Get and add the source and destination mac addr
+	}
+
 	tcpLayer.SetNetworkLayerForChecksum(&ipLayer)
 
 	buf := gopacket.NewSerializeBuffer()

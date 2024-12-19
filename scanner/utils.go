@@ -3,21 +3,33 @@ package scanner
 import (
 	"fmt"
 	"net"
+
+	"github.com/google/gopacket/routing"
 )
 
 func GetSource(target net.IP) (net.IP, *net.Interface, error) {
-	conn, err := net.Dial("udp", fmt.Sprintf("%s:80", target.String()))
-	if err != nil {
-		return nil, nil, fmt.Errorf("Error getting source IP: %v\n", err)
-	}
-	defer conn.Close()
+	// conn, err := net.Dial("udp", fmt.Sprintf("%s:80", target.String()))
+	// if err != nil {
+	// 	return nil, nil, fmt.Errorf("Error getting source IP: %v\n", err)
+	// }
+	// defer conn.Close()
+	//
+	// localAddr := conn.LocalAddr().(*net.UDPAddr)
+	// ifi, err := net.InterfaceByName(localAddr.Network())
+	// if err != nil {
+	// 	return nil, nil, fmt.Errorf("Error couldn't get the net interface: %v\n", err)
+	// }
+	// return localAddr.IP, ifi, nil
 
-	localAddr := conn.LocalAddr().(*net.UDPAddr)
-	ifi, err := net.InterfaceByName(localAddr.Network())
+	router, err := routing.New()
 	if err != nil {
-		return nil, nil, fmt.Errorf("Error couldn't get the net interface: %v\n", err)
+		return nil, nil, fmt.Errorf("Error creating a new router: %v\n", err)
 	}
-	return localAddr.IP, ifi, nil
+	ifi, _, srcIP, err := router.Route(target)
+	if err != nil {
+		return nil, nil, fmt.Errorf("Error routing the target IP: %v\n", err)
+	}
+	return srcIP, ifi, nil
 }
 
 func checksum(data []byte) uint16 {
