@@ -2,6 +2,7 @@ package scanner
 
 import (
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"sync"
@@ -66,7 +67,7 @@ func (s *SynScanner) Scan(port int) (string, error) {
 		return fmt.Sprintf("Could not get a free system port\n"), fmt.Errorf("Error getting a free port: %v\n", err)
 	}
 
-	mac, err := s.GetMac()
+	mac, err := s.GetMac() // this keeps timing out
 	if err != nil {
 		return "Could not get hardware addr\n", fmt.Errorf("Error getting mac addr: %v\n", err)
 	}
@@ -81,43 +82,95 @@ func (s *SynScanner) Scan(port int) (string, error) {
 		return fmt.Sprintf("Error sending packet data for port %d\n", port), err
 	}
 
-	// eth := &layers.Ethernet{}
-	// ip4 := &layers.IPv4{}
-	// tcp := &layers.TCP{}
+	eth := &layers.Ethernet{}
+	ip4 := &layers.IPv4{}
+	tcp := &layers.TCP{}
 	//
-	// parser := gopacket.NewDecodingLayerParser(layers.LayerTypeEthernet, eth, ip4, tcp)
+	parser := gopacket.NewDecodingLayerParser(layers.LayerTypeEthernet, eth, ip4, tcp)
 
-	pSrc := gopacket.NewPacketSource(handle, handle.LinkType())
+	ipFlow := gopacket.NewFlow(layers.EndpointIPv4, s.targetIP, s.sourceIP)
 
-	timeout := time.After(5 * time.Second)
-	pChan := pSrc.Packets()
+	// pSrc := gopacket.NewPacketSource(handle, handle.LinkType())
+	//
+	// timeout := time.After(5 * time.Second)
+	// pChan := pSrc.Packets()
+	//
+	// // TODO: Now I have to work on this... the GetMac func keeps timing out but I can resolve that later
+	// // it would be better now to make this scan functionality correct
+	// for {
+	// 	select {
+	// 	case packet, ok := <-pChan:
+	// 		if !ok {
+	// 			log.Println("Packet channel closed")
+	// 			return fmt.Sprintf("No response for port %d\n", port), nil
+	// 		}
+	// 		log.Println("Packet received")
+	// 		if tcpLayer := packet.Layer(layers.LayerTypeTCP); tcpLayer != nil {
+	// 			log.Println("TCP Layer found")
+	// 			tcp := tcpLayer.(*layers.TCP)
+	// 			if tcp.SrcPort == layers.TCPPort(port) && tcp.SYN && tcp.ACK {
+	// 				resp := fmt.Sprintf("Port %d is open on %s\n", port, s.targetIP)
+	// 				log.Printf(resp)
+	// 				return resp, nil
+	// 			}
+	// 		}
+	// 	case <-timeout:
+	// 		log.Println("Timeout reached, no packets received")
+	// 		return fmt.Sprintf("No response for port %d within timeout period\n", port), fmt.Errorf("Timeout reached\n")
+	// 	default:
+	// 	}
+	// 	break
+	// }
 
-	// TODO: Now I have to work on this... the GetMac func keeps timing out but I can resolve that later
-	// it would be better now to make this scan functionality correct
 	for {
-		select {
-		case packet, ok := <-pChan:
-			if !ok {
-				log.Println("Packet channel closed")
-				return fmt.Sprintf("No response for port %d\n", port), nil
-			}
-			log.Println("Packet received")
-			if tcpLayer := packet.Layer(layers.LayerTypeTCP); tcpLayer != nil {
-				log.Println("TCP Layer found")
-				tcp := tcpLayer.(*layers.TCP)
-				if tcp.SrcPort == layers.TCPPort(port) && tcp.SYN && tcp.ACK {
-					resp := fmt.Sprintf("Port %d is open on %s\n", port, s.targetIP)
-					log.Printf(resp)
-					return resp, nil
+		data, _, err := handle.ReadPacketData()
+		if err == pcap.NextErrorTimeoutExpired {
+			// return fmt.Sprintf("Timeout on port %d\n", port), nil
+			log.Printf("Timeout on port %d\n", port)
+			break
+
+		} else if err == io.EOF {
+			break
+		} else if err != nil {
+			// return fmt.Sprintf("Error reading packet data for port %d\n", port), err
+			log.Printf("Error reading packet data for port %d\n", port) // port is closed
+			continue
+		}
+
+		// decode the packet
+		decoded := []gopacket.LayerType{}
+		if err := parser.DecodeLayers(data, &decoded); err != nil {
+			// return fmt.Sprintf("Error decoding packet for port %d\n", port), err
+			log.Printf("Error decoding packet for port %d\n", port)
+			continue
+		}
+
+		for _, layerType := range decoded {
+			switch layerType {
+			case layers.LayerTypeIPv4:
+				if ip4.NetworkFlow() != ipFlow {
+					continue
 				}
+			case layers.LayerTypeTCP:
+				if tcp.DstPort != layers.TCPPort(srcPort) {
+					continue
+				} else if tcp.SYN && tcp.ACK {
+					report = fmt.Sprintf("Port %d is open on %s\n", port, s.targetIP)
+					log.Printf(report)
+					return report, nil
+				} else if tcp.RST {
+					report = fmt.Sprintf("Port %d is closed on %s\n", port, s.targetIP)
+					log.Printf(report)
+					return report, nil
+				}
+			default:
+				return report, fmt.Errorf("Unexpected layer type: %v\n", layerType)
 			}
-		case <-timeout:
-			log.Println("Timeout reached, no packets received")
-			return fmt.Sprintf("No response for port %d within timeout period\n", port), fmt.Errorf("Timeout reached\n")
-		default:
 		}
 		break
+
 	}
+
 	log.Println("Ending the scan ... ")
 
 	return report, nil

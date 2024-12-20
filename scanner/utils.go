@@ -105,7 +105,7 @@ func (s *SynScanner) GetMac() (net.HardwareAddr, error) {
 
 	// wait for an arp reply for a done time
 	for {
-		if time.Since(start) > time.Second*3 {
+		if time.Since(start) > time.Second*5 {
 			return nil, fmt.Errorf("Timeout reached getting ARP reply\n")
 		}
 		data, _, err := handle.ReadPacketData()
