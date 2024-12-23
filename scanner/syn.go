@@ -193,7 +193,19 @@ func (s *SynScanner) Start() error {
 			// now run the scan, print results and errors
 			rStr, err := s.Scan(s.port)
 			if err != nil {
-				log.Printf("Error in SYN scan on %s:%d -> %v\n", s.targetIP.String(), s.port, err)
+				log.Printf("Error in SYN scan on %s:%d -> %v\nRetrying with a whole TCP connect scan\n", s.targetIP.String(), s.port, err)
+				// retry with tcp connect scan
+				// basically I want to run the syn scanner but if it fails, I want it to retry using the whole tcp connection but
+				// I should have functions for both of them to maybe use a bit different way in goapt
+
+				sm := make(chan struct{}, ulimit())
+				rStr, err = TCPScan(s.targetIP, s.port, sm)
+				if err != nil {
+					log.Printf("Error in TCP scan on %s:%d -> %v\n", s.targetIP.String(), s.port, err)
+					report <- rStr
+					return
+				}
+				report <- rStr
 				return
 			}
 
