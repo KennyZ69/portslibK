@@ -3,9 +3,10 @@ package scanner
 import (
 	"fmt"
 	"net"
-	"os"
 	"strings"
 	"time"
+
+	"github.com/KennyZ69/portslibK/privileges"
 )
 
 // I guess I can do it as an interface because there will be more types of scans in the future and all of them should have the Scan func and also start stop
@@ -18,11 +19,15 @@ type Scanner interface {
 
 func CreateScanner(sType string, targetIP net.IP, portArr []int, timeout time.Duration) (Scanner, error) {
 	switch strings.ToLower(sType) {
-	case "syn":
-		if os.Geteuid() > 0 {
+	case "syn", "s", "sS":
+		// Check if the user is privileged
+		if !privileges.IsPrivileged {
 			return nil, fmt.Errorf("Access denied: You must run this as a privileged user.\n")
 		}
 		s, err := NewSynScanner(timeout, targetIP, portArr)
+		return s, err
+	case "tcp", "c", "connect", "cS", "tcpS":
+		s, err := NewTCPScanner(timeout, targetIP, portArr)
 		return s, err
 	}
 	return nil, fmt.Errorf("Error getting a scanner")

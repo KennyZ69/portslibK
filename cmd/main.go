@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/KennyZ69/portslibK/privileges"
 	"github.com/KennyZ69/portslibK/scanner"
 )
 
@@ -17,6 +18,8 @@ func main() {
 		fmt.Printf("Usage: %s <target IP> <target Port> <scan type>\n", os.Args[0])
 		return
 	}
+	// get the privileges
+	privileges.Init()
 
 	targetIP := net.ParseIP(os.Args[1])
 	targetPort, err := strconv.Atoi(os.Args[2])

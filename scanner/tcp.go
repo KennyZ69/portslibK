@@ -8,8 +8,31 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
+
+type TCPScanner struct {
+	targetIP net.IP
+	sourceIP net.IP
+	port     int
+	portR    []int
+	timeout  time.Duration
+}
+
+func NewTCPScanner(timeout time.Duration, targetIP net.IP, portArr []int) (*TCPScanner, error) {
+	sourceIP, _, err := GetSource(targetIP)
+	if err != nil {
+		return nil, fmt.Errorf("Error creating new TCP scanner: %v\n", err)
+	}
+	return &TCPScanner{
+		sourceIP: sourceIP,
+		targetIP: targetIP,
+		// port:     port,
+		portR:   portArr, // possibly port range
+		timeout: timeout,
+	}, nil
+}
 
 func TCPScan(targetIP net.IP, port int, semaphore chan struct{}) (string, error) {
 	semaphore <- struct{}{}
@@ -40,6 +63,50 @@ func TCPScan(targetIP net.IP, port int, semaphore chan struct{}) (string, error)
 	}
 	return fmt.Sprintf("TCP scan went succesfully\n"), nil
 
+}
+
+func (s *TCPScanner) Start() error {
+	var wg sync.WaitGroup
+
+	report := make(chan string, len(s.portR))
+
+	fmt.Println("Starting TCP scanner...")
+	wg.Add(1)
+
+	for i := 0; i < len(s.portR); i++ {
+		log.Printf("Starting TCP scan on %s:%d from %s\n", s.targetIP.String(), s.portR[i], s.sourceIP.String())
+		go func(i int) {
+			defer wg.Done()
+			s.port = s.portR[i]
+
+			rStr, err := s.Scan(s.port)
+			if err != nil {
+				log.Printf("Error in TCP scan on %s:%d -> %v\n", s.targetIP.String(), s.port, err)
+			}
+			report <- rStr
+			return
+		}(i)
+	}
+
+	go func() {
+		wg.Wait()
+		close(report)
+	}()
+
+	// print out the results
+	for r := range report {
+		fmt.Println(r)
+	}
+
+	return nil
+}
+func (s *TCPScanner) Stop() {
+	log.Printf("Stopping TCP scanner\n")
+	return
+}
+func (s *TCPScanner) Scan(port int) (string, error) {
+	semaphore := make(chan struct{}, ulimit())
+	return TCPScan(s.targetIP, port, semaphore)
 }
 
 func getPortHeader(c net.Conn) (string, error) {
