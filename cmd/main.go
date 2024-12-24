@@ -13,6 +13,7 @@ import (
 )
 
 func main() {
+	start := time.Now()
 
 	if len(os.Args) != 4 {
 		fmt.Printf("Usage: %s <target IP> <target Port> <scan type>\n", os.Args[0])
@@ -40,4 +41,7 @@ func main() {
 	}
 
 	s.Stop()
+
+	elapsed := time.Since(start)
+	log.Printf("Scan took %s\n", elapsed)
 }

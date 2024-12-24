@@ -29,6 +29,10 @@ func CreateScanner(sType string, targetIP net.IP, portArr []int, timeout time.Du
 	case "tcp", "c", "connect", "cS", "tcpS":
 		s, err := NewTCPScanner(timeout, targetIP, portArr)
 		return s, err
+	case "udp", "u", "uS":
+		s, err := NewUDPScanner(timeout, targetIP, portArr)
+		return s, err
 	}
+
 	return nil, fmt.Errorf("Error getting a scanner")
 }

@@ -11,6 +11,13 @@ import (
 	"github.com/google/gopacket/routing"
 )
 
+// Popular UDP payloads
+var PortPayloads = map[int][]byte{
+	53:  []byte("\x00\x01\x00\x00\x00\x00\x00\x00"),                             // DNS query payload
+	123: []byte("\x1b\x00\x00\x00\x00\x00\x00\x00\x00\x00"),                     // NTP client request
+	161: []byte("\x30\x26\x02\x01\x00\x04\x06\x70\x75\x62\x6c\x69\x63\xa0\x19"), // SNMP get request
+}
+
 func GetSource(target net.IP) (net.IP, *net.Interface, error) {
 	// conn, err := net.Dial("udp", fmt.Sprintf("%s:80", target.String()))
 	// if err != nil {
@@ -124,4 +131,18 @@ func (s *SynScanner) GetMac() (net.HardwareAddr, error) {
 		}
 
 	}
+}
+
+// FetchPayload fetches the predefined payload for a specific port
+func fetchPayload(port int) []byte {
+	if p, ok := PortPayloads[port]; ok {
+		return p
+	}
+	// default to empty payload if there's no predefined one
+	return []byte{}
+}
+
+// UpdatePayload allows adding or updating a payload for a specific port
+func UpdatePayload(port int, payload []byte) {
+	PortPayloads[port] = payload
 }
