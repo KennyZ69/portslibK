@@ -19,18 +19,21 @@ type Scanner interface {
 
 func CreateScanner(sType string, targetIP net.IP, portArr []int, timeout time.Duration) (Scanner, error) {
 	switch strings.ToLower(sType) {
-	case "syn", "s", "sS":
+	case "syn", "sS":
 		// Check if the user is privileged
 		if !privileges.IsPrivileged {
 			return nil, fmt.Errorf("Access denied: You must run this as a privileged user.\n")
 		}
 		s, err := NewSynScanner(timeout, targetIP, portArr)
 		return s, err
-	case "tcp", "c", "connect", "cS", "tcpS":
+	case "tcp", "connect", "cS", "tcpS":
 		s, err := NewTCPScanner(timeout, targetIP, portArr)
 		return s, err
-	case "udp", "u", "uS":
+	case "udp", "uS":
 		s, err := NewUDPScanner(timeout, targetIP, portArr)
+		return s, err
+	case "ack", "aS", "acS", "ackS":
+		s, err := NewACKScanner(targetIP, portArr)
 		return s, err
 	}
 

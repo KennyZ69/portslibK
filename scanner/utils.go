@@ -18,6 +18,15 @@ var PortPayloads = map[int][]byte{
 	161: []byte("\x30\x26\x02\x01\x00\x04\x06\x70\x75\x62\x6c\x69\x63\xa0\x19"), // SNMP get request
 }
 
+type ACKState string
+
+const (
+	AckOpen       ACKState = "open"
+	AckClosed     ACKState = "closed"
+	AckFiltered   ACKState = "filtered"
+	AckUnfiltered ACKState = "unfiltered"
+)
+
 func GetSource(target net.IP) (net.IP, *net.Interface, error) {
 	// conn, err := net.Dial("udp", fmt.Sprintf("%s:80", target.String()))
 	// if err != nil {
