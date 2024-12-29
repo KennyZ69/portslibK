@@ -1,4 +1,4 @@
-package scanner
+package portslibK
 
 import (
 	"fmt"
@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/KennyZ69/portslibK/privileges"
+	privileges "github.com/KennyZ69/portslibK/privileges"
 )
 
 // I guess I can do it as an interface because there will be more types of scans in the future and all of them should have the Scan func and also start stop

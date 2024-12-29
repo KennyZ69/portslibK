@@ -8,8 +8,8 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/KennyZ69/portslibK/privileges"
-	"github.com/KennyZ69/portslibK/scanner"
+	privileges "github.com/KennyZ69/portslibK/privileges"
+	scanner "github.com/KennyZ69/portslibK/scanner"
 )
 
 func main() {

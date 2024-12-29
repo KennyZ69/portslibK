@@ -1,4 +1,4 @@
-package privileges
+package portslibK
 
 // on windows it does not matter because either way the tcp connect scan will be ran
 func isPrivilegedWin() bool {
